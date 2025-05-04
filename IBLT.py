@@ -13,8 +13,9 @@ class IBLT:
         self.k = k  # number of hash functions
         self.table = [IBLTCell() for _ in range(m)]
     def hashes(self, x):
-        random.seed(hash(x))
-        return [random.randint(0, self.m-1) for _ in range(self.k)]
+        hash_bytes = hashlib.sha256(str(x).encode()).digest()
+        seeds = [int.from_bytes(hash_bytes[i:i+4], 'little') for i in range(0, self.k * 4, 4)]
+        return [seed % self.m for seed in seeds]
     def insert(self, x):
         for h in self.hashes(x):
             self.table[h].count+=1
@@ -39,7 +40,43 @@ class IBLT:
         decoded = set()
         for cell in self.table:
             if cell.count ==1:
-                decoded.add((self.table[cell].key_sum,self.table[cell].value_sum))
+                decoded.add((cell.key_sum,cell.value_sum))
                 self.delete(cell.key_sum)
+        return decoded
     def hashValue(self, x):
-        return hash(x)
+        return int(hashlib.md5(str(x).encode()).hexdigest(), 16)
+def test_iblt():
+    iblt = IBLT(m=20, k=4)
+
+    # Insert elements
+    elements_to_insert = [10, 20, 30, 40, 50]
+    for x in elements_to_insert:
+        iblt.insert(x)
+        print(f"Inserted: {x}")
+
+    # Attempt to get inserted elements
+    print("\nChecking inserted elements:")
+    for x in elements_to_insert:
+        result = iblt.get(x)
+        print(f"Get({x}) -> {result}")
+
+    # Delete some elements
+    elements_to_delete = [20, 30]
+    for x in elements_to_delete:
+        iblt.delete(x)
+        print(f"Deleted: {x}")
+
+    # Try to get deleted elements
+    print("\nChecking deleted elements:")
+    for x in elements_to_delete:
+        result = iblt.get(x)
+        print(f"Get({x}) -> {result}")
+
+    # Try to list entries remaining in the table
+    print("\nListing entries:")
+    entries = iblt.listEntries()
+    for key, hashed_value in entries:
+        print(f"Key: {key}, Hashed Value: {hashed_value}")
+
+# Run the test
+test_iblt()
