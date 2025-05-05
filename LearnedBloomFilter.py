@@ -1,18 +1,18 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
+import hashlib
 
-# Your BloomFilter class
+# Simplified, working BloomFilter with deterministic hashing
 class BloomFilter:
-    def __init__(self, k, p, h, m):
+    def __init__(self, k, m):
         self.k = k
-        self.p = p
-        self.h = h
         self.m = m
         self.data = np.zeros((k, m))
 
     def hash(self, x):
-        arr = x ** np.arange(self.k)
-        return ((self.h @ arr) % self.p) % self.m
+        x_bytes = str(x).encode('utf-8')
+        digest = hashlib.sha256(x_bytes).digest()
+        return np.array([int.from_bytes(digest[i*4:(i+1)*4], 'big') % self.m for i in range(self.k)])
 
     def insert(self, x):
         indices = self.hash(x)
@@ -20,103 +20,78 @@ class BloomFilter:
 
     def query(self, x):
         indices = self.hash(x)
-        indices = indices.astype(int)  # Ensure indices are integers
         return all(self.data[np.arange(self.k), indices])
 
 
-# Your Learned Bloom Filter class
+# Learned Bloom Filter
 class LearnedBloomFilter:
-    def __init__(self, k, p, h, m, backup_filter=None):
+    def __init__(self, k, m, confidence_threshold, backup_filter):
         self.k = k
-        self.p = p
-        self.h = h
         self.m = m
+        self.confidence_threshold = confidence_threshold
         self.backup_filter = backup_filter
-        self.model = LogisticRegression()  # Using logistic regression as a simple model
+        self.model = LogisticRegression()
         self.trained = False
 
+    def _get_features(self, x):
+        indices = self.backup_filter.hash(x)
+        features = np.zeros(self.m)
+        features[indices] = 1
+        return features
+
     def train(self, positive_samples, negative_samples):
-        # Prepare training data for the model
         X_train = []
         y_train = []
 
-        # Generate features for each sample (hash positions)
-        for sample in positive_samples:
-            indices = self.backup_filter.hash(sample)
-            indices = indices.astype(int)  # Ensure indices are integers
-            features = np.zeros(self.m)
-            features[indices] = 1
-            X_train.append(features)
-            y_train.append(1)  # Positive class
+        for x in positive_samples:
+            X_train.append(self._get_features(x))
+            y_train.append(1)
 
-        for sample in negative_samples:
-            indices = self.backup_filter.hash(sample)
-            indices = indices.astype(int)  # Ensure indices are integers
-            features = np.zeros(self.m)
-            features[indices] = 1
-            X_train.append(features)
-            y_train.append(0)  # Negative class
+        for x in negative_samples:
+            X_train.append(self._get_features(x))
+            y_train.append(0)
 
-        # Train the logistic regression model
         self.model.fit(X_train, y_train)
         self.trained = True
 
+        # Selectively add uncertain positives to backup
+        inserted = 0
+        for x in positive_samples:
+            features = self._get_features(x)
+            prob = self.model.predict_proba([features])[0][1]
+            if prob < self.confidence_threshold:
+                self.backup_filter.insert(x)
+                inserted += 1
+        print(f"Inserted {inserted} low-confidence positives into backup.")
+
     def query(self, x):
         if not self.trained:
-            raise ValueError("Model is not trained yet.")
-
-        # Get hash positions and create feature vector
-        indices = self.backup_filter.hash(x)
-        indices = indices.astype(int)  # Ensure indices are integers
-        features = np.zeros(self.m)
-        features[indices] = 1
-
-        # Use the trained model to make a prediction
-        prediction = self.model.predict([features])[0]
-
-        # If model is not confident (e.g., 0.5 threshold), fall back to backup filter
-        if prediction == 1:
+            raise RuntimeError("Model not trained.")
+        features = self._get_features(x)
+        prob = self.model.predict_proba([features])[0][1]
+        if prob >= self.confidence_threshold:
             return True
         else:
             return self.backup_filter.query(x)
 
 
-# --- Test with Gaussian Distribution ---
+# ----- RUN TEST -----
 
-# Initialize your BloomFilter (Backup filter)
+# Setup
 k = 100
-p = 2 ** 61 - 1
-h = np.vectorize(int)(np.random.rand(k, k) * (p + 1))  # Random hash functions
 m = 100000
+threshold = 0.9
+backup = BloomFilter(k, m)
+lbf = LearnedBloomFilter(k, m, threshold, backup)
 
-backup_filter = BloomFilter(k, p, h, m)
+# Toy dataset
+positives = np.array([2.0, 2.1, 2.5, 3.0])
+negatives = np.array([0.0, -0.5, 0.5, 1.0])
 
-# Initialize Learned Bloom Filter with the backup filter
-learned_filter = LearnedBloomFilter(k, p, h, m, backup_filter)
+lbf.train(positives, negatives)
 
-# Generate Positive and Negative Samples from a Gaussian distribution
-mu = 0  # Mean of the Gaussian
-sigma = 1  # Standard deviation
-n = 10000  # Number of samples
 
-# Generate samples
-samples = np.random.normal(loc=mu, scale=sigma, size=n)
-
-# Define positive samples as values greater than 1 (for example)
-positive_samples = samples[samples > 1]
-
-# Define negative samples as values less than or equal to 1
-negative_samples = samples[samples <= 1]
-
-# Train the Learned Bloom Filter with positive and negative samples
-learned_filter.train(positive_samples, negative_samples)
-
-# Query the Learned Bloom Filter with new values
-test_values = [2, 0.5, -0.5, 3, -2]
-
-# Test the Learned Bloom Filter on a few samples
-results = {x: learned_filter.query(x) for x in test_values}
-
-print("Query Results:")
-for value, result in results.items():
-    print(f"Value: {value}, Learned Bloom Filter result: {result}")
+# Test known values
+test_values = [2.0, 0.5, -1.0, 3.0]
+for x in test_values:
+    print(f"Query({x}) = {lbf.query(x)}")
