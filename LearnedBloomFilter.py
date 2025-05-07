@@ -23,6 +23,39 @@ class BloomFilter:
         return all(self.data[np.arange(self.k), indices])
 
 
+class CountingBloomFilter:
+    def __init__(self, k, m, data=None):
+        self.k = k
+        self.m = m
+        if data is None:
+            self.data = np.zeros((k, m))
+        else:
+            self.data = data
+
+    def hash(self, x):
+        x_bytes = str(x).encode('utf-8')
+        digest = hashlib.sha256(x_bytes).digest()
+        return np.array([int.from_bytes(digest[i*4:(i+1)*4], 'big') % self.m for i in range(self.k)])
+
+    def insert(self, x):
+        indices = self.hash(x)
+        self.data[np.arange(self.k), indices] += 1
+
+    def query(self, x):
+        indices = self.hash(x)
+        return all(self.data[np.arange(self.k), indices])
+
+    def __add__(self, other):
+        return CountingBloomFilter(self.k, self.m, self.data + other.data)
+
+    def __neg__(self, other):
+        return CountingBloomFilter(self.k, self.m, -self.data)
+
+    def __sub__(self, other):
+        return CountingBloomFilter(self.k, self.m, self.data - other.data)
+
+
+
 # Learned Bloom Filter
 class LearnedBloomFilter:
     def __init__(self, k, m, confidence_threshold, backup_filter):
@@ -77,21 +110,22 @@ class LearnedBloomFilter:
 
 # ----- RUN TEST -----
 
-# Setup
-k = 100
-m = 100000
-threshold = 0.9
-backup = BloomFilter(k, m)
-lbf = LearnedBloomFilter(k, m, threshold, backup)
+if __name__ == "__main__":
+    # Setup
+    k = 100
+    m = 100000
+    threshold = 0.9
+    backup = BloomFilter(k, m)
+    lbf = LearnedBloomFilter(k, m, threshold, backup)
 
-# Toy dataset
-positives = np.array([2.0, 2.1, 2.5, 3.0])
-negatives = np.array([0.0, -0.5, 0.5, 1.0])
+    # Toy dataset
+    positives = np.array([2.0, 2.1, 2.5, 3.0])
+    negatives = np.array([0.0, -0.5, 0.5, 1.0])
 
-lbf.train(positives, negatives)
+    lbf.train(positives, negatives)
 
 
-# Test known values
-test_values = [2.0, 0.5, -1.0, 3.0]
-for x in test_values:
-    print(f"Query({x}) = {lbf.query(x)}")
+    # Test known values
+    test_values = [2.0, 0.5, -1.0, 3.0]
+    for x in test_values:
+        print(f"Query({x}) = {lbf.query(x)}")

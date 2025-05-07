@@ -1,0 +1,110 @@
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+import hashlib
+import random
+import matplotlib.pyplot as plt
+
+from LearnedBloomFilter import CountingBloomFilter
+
+class DRLearnedBloomFilter:
+
+	def __init__(self, C, N, k, m, model, X=[]):
+		self.C = C 
+		self.N = N 
+		self.model = model 
+
+		self.k = k 
+		self.m = m
+
+		self.S = []
+		self.B = []
+		self.W = []
+
+		self.phi0 = model()
+
+		self.F = CountingBloomFilter(k, m)
+		for x in X:
+			self.F.insert(x)
+
+		self.hidden_data = ([], [])
+
+	def insert(self, x):
+		preds = [ S[i].predict([[x]])[0] for i in range(len(self.S)) ]
+		if True in preds:
+			self.B[preds.index(True)].insert(x)
+		self.F.insert(x)
+
+	def query(self, x):
+		if len(self.S) != 0:
+			tau = sum( self.W[i] * self.S[i].predict([[x]])[0] for i in range(len(self.S)) )
+			if tau > 0.5:
+				return True
+
+			F2 = self.F 
+			for b in self.B:
+				F2 -= b
+			
+			return F2.query(x)
+		return self.F.query(x)
+
+	def update(self, x, y):
+		self.hidden_data[0].append([x])
+		self.hidden_data[1].append(y)
+
+		for i, phi in enumerate(self.S):
+			if phi.predict([[x]])[0] != y:
+				self.W[i] /= 2
+
+		if y and all( not b.query(x) for b in self.B ):
+			for i, phi in enumerate(self.S):
+				if phi.predict([[x]])[0]:
+					self.B[i].insert(x)
+					break
+
+		if len(self.hidden_data[0]) > self.N:
+			self.phi0.fit(*self.hidden_data)
+			if len(self.S) < self.C:
+				self.S.append(self.phi0)
+				self.B.append(CountingBloomFilter(self.k, self.m))
+				self.W.append(1/self.C)
+			else:
+				i = np.argmin(self.W)
+				self.S[i] = self.phi0
+				self.B[i] = CountingBloomFilter(self.k, self.m)
+				self.W[i] = 1/self.C
+
+			self.phi0 = self.model()
+
+		c = sum(self.W)
+		for i in range(len(self.S)):
+			self.W[i] /= c
+
+		if len(self.S) > 0:
+			arg = np.argsort(self.W)
+			self.W = list(np.array(self.W)[arg])
+			self.B = list(np.array(self.B)[arg])
+			self.S = list(np.array(self.S)[arg])
+
+
+D = DRLearnedBloomFilter(2, 100, 5, 100, LogisticRegression)
+
+U = np.random.randn(100)
+Y = U[U > 0.5]
+
+for x in Y:
+	D.insert(x)
+
+n = 0
+L = []
+R = []
+for i in range(1000):
+	ind = random.randint(0, 100 - 1)
+	x = U[ind]
+	q = D.query(x)
+	if x in Y and not q:
+		raise ValueError("oh no!")
+	if x not in Y and q:
+		n += 1
+		L.append(i)
+		R.append(x)
+	D.update(x, x in Y)
