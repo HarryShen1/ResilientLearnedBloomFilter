@@ -75,23 +75,36 @@ class LearnedBloomFilter:
             return self.backup_filter.query(x)
 
 
-# ----- RUN TEST -----
+# Parameters
+k = 20          # Number of hash functions
+m = 2000        # Bloom filter size
+threshold = 0.9
+n = 10000       # Number of Gaussian samples
 
 # Setup
-k = 100
-m = 100000
-threshold = 0.9
 backup = BloomFilter(k, m)
 lbf = LearnedBloomFilter(k, m, threshold, backup)
 
-# Toy dataset
-positives = np.array([2.0, 2.1, 2.5, 3.0])
-negatives = np.array([0.0, -0.5, 0.5, 1.0])
+# Generate Gaussian data
+samples = np.random.normal(loc=0, scale=1, size=n)
+positive_samples = samples[samples > 1]
+negative_samples = samples[samples <= 1]
 
-lbf.train(positives, negatives)
+print(f"Training on {len(positive_samples)} positives and {len(negative_samples)} negatives...")
+
+# Train the learned Bloom filter
+lbf.train(positive_samples, negative_samples)
+print("Model coefficient norm:", np.linalg.norm(lbf.model.coef_))
 
 
-# Test known values
-test_values = [2.0, 0.5, -1.0, 3.0]
+# Test some values
+test_values = positive_samples[np.random.choice(len(positive_samples), 5, replace=False)]
+test_values2 = negative_samples[np.random.choice(len(negative_samples), 5, replace=False)]
+print("\nPositive Query Results:")
 for x in test_values:
-    print(f"Query({x}) = {lbf.query(x)}")
+    result = lbf.query(x)
+    print(f"Query({x}) = {result}")
+print("\nNegative Query Results:")
+for x in test_values2:
+    result = lbf.query(x)
+    print(f"Query({x}) = {result}")
