@@ -9,7 +9,7 @@ from LearnedBloomFilter import CountingBloomFilter, ConstantPredictor
 
 class DRLearnedBloomFilter:
 
-	def __init__(self, C, N, k, m, model, preprocess=lambda x : [x], X=[]):
+	def __init__(self, C, N, k, m, model, preprocess=lambda x : [x], gamma=0.1, X=[]):
 		self.C = C 
 		self.N = N 
 		self.model = model 
@@ -21,6 +21,8 @@ class DRLearnedBloomFilter:
 		self.S = []
 		self.B = []
 		self.W = []
+
+		self.gamma = gamma
 
 		self.phi0 = model()
 
@@ -53,15 +55,20 @@ class DRLearnedBloomFilter:
 		self.hidden_data[0].append(self.preprocess(x))
 		self.hidden_data[1].append(y)
 
-		for i, phi in enumerate(self.S):
-			if phi.predict([self.preprocess(x)])[0] != y:
+		preds = [phi.predict([self.preprocess(x)])[0] for phi in self.S]
+
+		for i, pred in enumerate(preds):
+			if pred != y:
 				self.W[i] /= 2
 
-		if y and all( not b.query(x) for b in self.B ):
-			for i, phi in enumerate(self.S):
-				if phi.predict([self.preprocess(x)])[0]:
-					self.B[i].insert(x)
-					break
+		if y and all([ not b.query(x) for b in self.B ]):
+			best = (-1, -1)
+			for i, pred in enumerate(preds):
+				if pred:
+					if self.W[i] > best[1]:
+						best = (i, self.W[i])
+			if best[0] != -1:
+				self.B[best[0]].insert(x)
 
 		if len(self.hidden_data[0]) > self.N:
 			if (len(np.unique(self.hidden_data[1])) >= 2):
@@ -74,20 +81,20 @@ class DRLearnedBloomFilter:
 				self.W.append(1/self.C)
 			else:
 				i = np.argmin(self.W)
-				self.S[i] = self.phi0
-				self.B[i] = CountingBloomFilter(self.k, self.m)
-				self.W[i] = 1/self.C
+
+				old_score = self.S[i].score(*self.hidden_data)
+				new_score = self.phi0.score(*self.hidden_data)
+
+				if old_score < new_score - self.gamma:
+					print("WHEE")
+					self.S[i] = self.phi0
+					self.B[i] = CountingBloomFilter(self.k, self.m)
+					self.W[i] = 1/self.C
 
 			self.phi0 = self.model()
 			self.hidden_data = ([], [])
 
+
 		c = sum(self.W)
 		for i in range(len(self.S)):
 			self.W[i] /= c
-
-		if len(self.S) > 0:
-			arg = np.argsort(self.W)
-			self.W = list(np.array(self.W)[arg])
-			self.B = list(np.array(self.B)[arg])
-			self.S = list(np.array(self.S)[arg])
-

@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 import hashlib
+import matplotlib.pyplot as plt
+
 
 class ConstantPredictor:
     def __init__(self, x):
@@ -8,6 +10,9 @@ class ConstantPredictor:
 
     def predict(self, y):
         return [self.x]
+
+    def score(self, X, Y):
+        return [self.x == y for y in Y]
 
 # Simplified, working BloomFilter with deterministic hashing
 class BloomFilter:
@@ -39,12 +44,15 @@ class CountingBloomFilter:
         else:
             self.data = data
 
+        self.n = 0
+
     def hash(self, x):
         x_bytes = str(x).encode('utf-8')
         digest = hashlib.sha256(x_bytes).digest()
         return np.array([int.from_bytes(digest[i*4:(i+1)*4], 'big') % self.m for i in range(self.k)])
 
     def insert(self, x):
+        self.n += 1
         indices = self.hash(x)
         self.data[np.arange(self.k), indices] += 1
 
@@ -79,7 +87,7 @@ class LearnedBloomFilter:
     #     features[indices] = 1
     #     return features
 
-    def train(self, positive_samples, negative_samples):
+    def train(self, X, positive_samples, negative_samples):
         X_train = []
         y_train = []
 
@@ -95,13 +103,17 @@ class LearnedBloomFilter:
             self.model.fit(X_train, y_train)
         else:
             self.model = ConstantPredictor(y_train[0])
+
+        # plt.scatter(X_train, y_train, c=self.model.predict(X_train))
+        # plt.show()
+
         self.trained = True
 
         # Selectively add uncertain positives to backup
         inserted = 0
-        for x in positive_samples:
+        for x in X:
             prob = self.model.predict([self.preprocess(x)])[0]
-            if prob:
+            if not prob:
                 self.backup_filter.insert(x)
                 inserted += 1
 
