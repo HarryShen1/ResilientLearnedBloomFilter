@@ -23,6 +23,39 @@ class BloomFilter:
         return all(self.data[np.arange(self.k), indices])
 
 
+class CountingBloomFilter:
+    def __init__(self, k, m, data=None):
+        self.k = k
+        self.m = m
+        if data is None:
+            self.data = np.zeros((k, m))
+        else:
+            self.data = data
+
+    def hash(self, x):
+        x_bytes = str(x).encode('utf-8')
+        digest = hashlib.sha256(x_bytes).digest()
+        return np.array([int.from_bytes(digest[i*4:(i+1)*4], 'big') % self.m for i in range(self.k)])
+
+    def insert(self, x):
+        indices = self.hash(x)
+        self.data[np.arange(self.k), indices] += 1
+
+    def query(self, x):
+        indices = self.hash(x)
+        return all(self.data[np.arange(self.k), indices])
+
+    def __add__(self, other):
+        return CountingBloomFilter(self.k, self.m, self.data + other.data)
+
+    def __neg__(self, other):
+        return CountingBloomFilter(self.k, self.m, -self.data)
+
+    def __sub__(self, other):
+        return CountingBloomFilter(self.k, self.m, self.data - other.data)
+
+
+
 # Learned Bloom Filter
 class LearnedBloomFilter:
     def __init__(self, k, m, confidence_threshold, backup_filter):
