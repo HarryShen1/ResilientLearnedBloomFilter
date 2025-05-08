@@ -4,7 +4,8 @@ import hashlib
 import random
 import matplotlib.pyplot as plt
 
-from LearnedBloomFilter import CountingBloomFilter
+from LearnedBloomFilter import CountingBloomFilter, ConstantPredictor
+
 
 class DRLearnedBloomFilter:
 
@@ -62,7 +63,10 @@ class DRLearnedBloomFilter:
 					break
 
 		if len(self.hidden_data[0]) > self.N:
-			self.phi0.fit(*self.hidden_data)
+			if (len(np.unique(self.hidden_data[1])) >= 2):
+				self.phi0.fit(*self.hidden_data)
+			else:
+				self.phi0 = ConstantPredictor(self.hidden_data[1][0])
 			if len(self.S) < self.C:
 				self.S.append(self.phi0)
 				self.B.append(CountingBloomFilter(self.k, self.m))
@@ -74,6 +78,7 @@ class DRLearnedBloomFilter:
 				self.W[i] = 1/self.C
 
 			self.phi0 = self.model()
+			self.hidden_data = ([], [])
 
 		c = sum(self.W)
 		for i in range(len(self.S)):
@@ -85,26 +90,3 @@ class DRLearnedBloomFilter:
 			self.B = list(np.array(self.B)[arg])
 			self.S = list(np.array(self.S)[arg])
 
-
-D = DRLearnedBloomFilter(2, 100, 5, 100, LogisticRegression)
-
-U = np.random.randn(100)
-Y = U[U > 0.5]
-
-for x in Y:
-	D.insert(x)
-
-n = 0
-L = []
-R = []
-for i in range(1000):
-	ind = random.randint(0, 100 - 1)
-	x = U[ind]
-	q = D.query(x)
-	if x in Y and not q:
-		raise ValueError("oh no!")
-	if x not in Y and q:
-		n += 1
-		L.append(i)
-		R.append(x)
-	D.update(x, x in Y)

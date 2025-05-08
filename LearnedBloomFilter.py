@@ -2,6 +2,13 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 import hashlib
 
+class ConstantPredictor:
+    def __init__(self, x):
+        self.x = x  
+
+    def predict(self, y):
+        return [self.x]
+
 # Simplified, working BloomFilter with deterministic hashing
 class BloomFilter:
     def __init__(self, k, m):
@@ -58,41 +65,43 @@ class CountingBloomFilter:
 
 # Learned Bloom Filter
 class LearnedBloomFilter:
-    def __init__(self, k, m, confidence_threshold, backup_filter):
+    def __init__(self, k, m, model):
         self.k = k
         self.m = m
-        self.confidence_threshold = confidence_threshold
-        self.backup_filter = backup_filter
-        self.model = LogisticRegression()
+        self.backup_filter = BloomFilter(k, m)
+        self.model = model()
         self.trained = False
 
-    def _get_features(self, x):
-        indices = self.backup_filter.hash(x)
-        features = np.zeros(self.m)
-        features[indices] = 1
-        return features
+    # def _get_features(self, x):
+    #     indices = self.backup_filter.hash(x)
+    #     features = np.zeros(self.m)
+    #     features[indices] = 1
+    #     return features
 
     def train(self, positive_samples, negative_samples):
         X_train = []
         y_train = []
 
         for x in positive_samples:
-            X_train.append(self._get_features(x))
+            X_train.append([x])
             y_train.append(1)
 
         for x in negative_samples:
-            X_train.append(self._get_features(x))
+            X_train.append([x])
             y_train.append(0)
 
-        self.model.fit(X_train, y_train)
+        if (len(np.unique(y_train)) > 1):
+            self.model.fit(X_train, y_train)
+        else:
+            self.model = ConstantPredictor(y_train[0])
         self.trained = True
 
         # Selectively add uncertain positives to backup
         inserted = 0
         for x in positive_samples:
-            features = self._get_features(x)
-            prob = self.model.predict_proba([features])[0][1]
-            if prob < self.confidence_threshold:
+            features = x
+            prob = self.model.predict([[features]])[0]
+            if prob:
                 self.backup_filter.insert(x)
                 inserted += 1
         print(f"Inserted {inserted} low-confidence positives into backup.")
@@ -100,9 +109,9 @@ class LearnedBloomFilter:
     def query(self, x):
         if not self.trained:
             raise RuntimeError("Model not trained.")
-        features = self._get_features(x)
-        prob = self.model.predict_proba([features])[0][1]
-        if prob >= self.confidence_threshold:
+        features = x
+        prob = self.model.predict([[features]])[0]
+        if prob:
             return True
         else:
             return self.backup_filter.query(x)
