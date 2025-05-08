@@ -140,4 +140,5 @@ plt.plot(np.arange(n_b), X[2], label="DRLBF")
 
 plt.legend()
 
+plt.savefig("out_thingy.png")
 plt.show()
