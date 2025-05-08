@@ -65,10 +65,11 @@ class CountingBloomFilter:
 
 # Learned Bloom Filter
 class LearnedBloomFilter:
-    def __init__(self, k, m, model):
+    def __init__(self, k, m, model, preprocess=lambda x : [x]):
         self.k = k
         self.m = m
         self.backup_filter = BloomFilter(k, m)
+        self.preprocess = preprocess
         self.model = model()
         self.trained = False
 
@@ -83,11 +84,11 @@ class LearnedBloomFilter:
         y_train = []
 
         for x in positive_samples:
-            X_train.append([x])
+            X_train.append(self.preprocess(x))
             y_train.append(1)
 
         for x in negative_samples:
-            X_train.append([x])
+            X_train.append(self.preprocess(x))
             y_train.append(0)
 
         if (len(np.unique(y_train)) > 1):
@@ -99,18 +100,15 @@ class LearnedBloomFilter:
         # Selectively add uncertain positives to backup
         inserted = 0
         for x in positive_samples:
-            features = x
-            prob = self.model.predict([[features]])[0]
+            prob = self.model.predict([self.preprocess(x)])[0]
             if prob:
                 self.backup_filter.insert(x)
                 inserted += 1
-        print(f"Inserted {inserted} low-confidence positives into backup.")
 
     def query(self, x):
         if not self.trained:
             raise RuntimeError("Model not trained.")
-        features = x
-        prob = self.model.predict([[features]])[0]
+        prob = self.model.predict([self.preprocess(x)])[0]
         if prob:
             return True
         else:

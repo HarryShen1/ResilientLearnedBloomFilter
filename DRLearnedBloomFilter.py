@@ -9,10 +9,11 @@ from LearnedBloomFilter import CountingBloomFilter, ConstantPredictor
 
 class DRLearnedBloomFilter:
 
-	def __init__(self, C, N, k, m, model, X=[]):
+	def __init__(self, C, N, k, m, model, preprocess=lambda x : [x], X=[]):
 		self.C = C 
 		self.N = N 
 		self.model = model 
+		self.preprocess = preprocess
 
 		self.k = k 
 		self.m = m
@@ -30,14 +31,14 @@ class DRLearnedBloomFilter:
 		self.hidden_data = ([], [])
 
 	def insert(self, x):
-		preds = [ S[i].predict([[x]])[0] for i in range(len(self.S)) ]
+		preds = [ S[i].predict([self.preprocess(x)])[0] for i in range(len(self.S)) ]
 		if True in preds:
 			self.B[preds.index(True)].insert(x)
 		self.F.insert(x)
 
 	def query(self, x):
 		if len(self.S) != 0:
-			tau = sum( self.W[i] * self.S[i].predict([[x]])[0] for i in range(len(self.S)) )
+			tau = sum( self.W[i] * self.S[i].predict([self.preprocess(x)])[0] for i in range(len(self.S)) )
 			if tau > 0.5:
 				return True
 
@@ -49,16 +50,16 @@ class DRLearnedBloomFilter:
 		return self.F.query(x)
 
 	def update(self, x, y):
-		self.hidden_data[0].append([x])
+		self.hidden_data[0].append(self.preprocess(x))
 		self.hidden_data[1].append(y)
 
 		for i, phi in enumerate(self.S):
-			if phi.predict([[x]])[0] != y:
+			if phi.predict([self.preprocess(x)])[0] != y:
 				self.W[i] /= 2
 
 		if y and all( not b.query(x) for b in self.B ):
 			for i, phi in enumerate(self.S):
-				if phi.predict([[x]])[0]:
+				if phi.predict([self.preprocess(x)])[0]:
 					self.B[i].insert(x)
 					break
 
