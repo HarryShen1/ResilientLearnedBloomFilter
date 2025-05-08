@@ -14,7 +14,7 @@ from LearnedBloomFilter import BloomFilter, CountingBloomFilter, LearnedBloomFil
 from DRLearnedBloomFilter import DRLearnedBloomFilter
 
 # fixing memory !!! 
-memory = 30000
+memory = 10000
 n_hash = 5
 
 scale = 2000
