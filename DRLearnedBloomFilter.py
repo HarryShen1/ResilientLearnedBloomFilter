@@ -84,7 +84,7 @@ class DRLearnedBloomFilter:
 
 				old_score = self.S[i].score(*self.hidden_data)
 				new_score = self.phi0.score(*self.hidden_data)
-
+				
 				if type(old_score) == float and type(new_score) == float and type(self.gamma) == float and old_score < new_score - self.gamma:
 					print("WHEE")
 					self.S[i] = self.phi0

@@ -120,19 +120,22 @@ def test(lbf_params, bf_params, drlbf_params, FPR_batch_size=1000, num_batch=500
 	return np.array([bf_fpr, lbf_fpr, drlbf_fpr])
 
 ## TODO harry make 500
-n_b = 500#200
+
+n_b = 500
 
 ## TODO harry make 50
-n_iter = 50#1
+n_iter = 50
 
 X = test(lbf_params, bf_params, drlbf_params, num_batch = n_b)
 for i in tqdm(range(2, n_iter + 1)):
 	X = (1 - 1/i) * X + (1/i) * test(lbf_params, bf_params, drlbf_params, num_batch = n_b)
 
+
+
 plt.xlabel("Iteration (1000 queries)")
 plt.ylabel("False Positive Rate (FPR)")
 
-plt.title("FPR againt Time with Distribution Shift")
+plt.title("FPR against Time with Distribution Shift")
 
 plt.plot(np.arange(n_b), X[0], label="BF")
 plt.plot(np.arange(n_b), X[1], label="LBF")
