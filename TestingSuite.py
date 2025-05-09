@@ -27,7 +27,7 @@ lbf_params = (n_hash, memory // n_hash, lambda : GradientBoostingClassifier(n_es
 
 # Memory usage = k * m + 1 ~~ km
 
-drlbf_params = (2, 1000, n_hash, memory // n_hash, lambda : GradientBoostingClassifier(n_estimators = 10), lambda x : [x/scale]) # (C, N, k, m, model)
+drlbf_params = (2, 1000, n_hash, memory // (3 * n_hash), lambda : GradientBoostingClassifier(n_estimators = 10), lambda x : [x/scale]) # (C, N, k, m, model)
 
 # Memory usage = (k * m) * (C + 1) + C * 1 ~~ (C + 1)(km + 1) ~~ (C + 1)km
 # 3km in this case
@@ -120,10 +120,10 @@ def test(lbf_params, bf_params, drlbf_params, FPR_batch_size=1000, num_batch=500
 	return np.array([bf_fpr, lbf_fpr, drlbf_fpr])
 
 ## TODO harry make 500
-n_b = 200
+n_b = 500#200
 
 ## TODO harry make 50
-n_iter = 1
+n_iter = 50#1
 
 X = test(lbf_params, bf_params, drlbf_params, num_batch = n_b)
 for i in tqdm(range(2, n_iter + 1)):
