@@ -7,8 +7,9 @@ from sklearn.ensemble import GradientBoostingClassifier
 import hashlib
 import random
 import matplotlib.pyplot as plt
-from tqdm import tqdm 
+from tqdm import tqdm
 import sys
+
 
 from LearnedBloomFilter import BloomFilter, CountingBloomFilter, LearnedBloomFilter
 from DRLearnedBloomFilter import DRLearnedBloomFilter
@@ -44,11 +45,8 @@ def test(lbf_params, bf_params, drlbf_params, FPR_batch_size=1000, num_batch=500
 	lbf_fpr = []
 	drlbf_fpr = []
 
-	# Random Zipfian interval with noise
-	
-
 	# Random Gaussian interval with noise
-	#INTERVALS = sorted(np.random.randn(n_intervals * 2) * scale)
+	INTERVALS = sorted(np.random.randn(n_intervals * 2) * scale)
 
 
 	def get_all_points():
