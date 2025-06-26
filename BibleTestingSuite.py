@@ -1,5 +1,15 @@
 import numpy as np
 import pickle
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+from sklearn.neighbors import NearestCentroid
+from sklearn.ensemble import GradientBoostingClassifier
+import hashlib
+import random
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import sys
 
 from LearnedBloomFilter import BloomFilter, CountingBloomFilter, LearnedBloomFilter
 from DRLearnedBloomFilter import DRLearnedBloomFilter
@@ -23,9 +33,6 @@ drlbf_params = (2, 1000, n_hash, memory // (3 * n_hash), lambda : GradientBoosti
 # Memory usage = (k * m) * (C + 1) + C * 1 ~~ (C + 1)(km + 1) ~~ (C + 1)km
 # 3km in this case
 
-def get_arg_q_thingy(dbf):
-	return dbf.B[np.argmax(dbf.W)].n if len(dbf.W) != 0 else -1
-
 with open('bible_corpus.pkl', 'rb') as f:
     bible_corpus = pickle.load(f)
 with open('bible_corpus_nouns.pkl', 'rb') as f:
@@ -33,23 +40,75 @@ with open('bible_corpus_nouns.pkl', 'rb') as f:
 with open('bible_corpus_notnouns.pkl', 'rb') as f:
     bible_corpus_notnouns = pickle.load(f)
 
-
-def test(lbf_params, bf_params, drlbf_params, FPR_batch_size=1000, num_batch=500, local_scale=1000, scale=2000, dshift_rate=100, n_intervals = 5):
+def bfTrain(bf_params,size):
     bf = BloomFilter(*bf_params)
+    universe = bible_corpus[:size]
+    positive_samples = []
+    positive_counter = 0
+    for i in universe:
+        if i == bible_corpus_nouns[positive_counter]:
+            positive_samples.append(i)
+            positive_counter += 1
+    for i in positive_samples:
+        bf.insert(i)
+    return bf
+
+def lbfTrain(lbf_params,size):
     lbf = LearnedBloomFilter(*lbf_params)
+    universe = bible_corpus[:size]
+    positive_samples = []
+    positive_counter = 0
+    negative_samples = []
+    negative_counter = 0
+    for i in universe:
+        if i == bible_corpus_nouns[positive_counter]:
+            positive_samples.append(i)
+            positive_counter += 1
+        else:
+            negative_samples.append(i)
+            negative_counter += 1
+    lbf.train(universe, positive_samples, negative_samples)
+    return lbf
+
+def test(bf, lbf, drlbf_params, fpr, word):
     drlbf = DRLearnedBloomFilter(*drlbf_params)
 
-    bf_fpr = []
-    lbf_fpr = []
-    drlbf_fpr = []
+    bf_fpr = fpr[0]
+    lbf_fpr = lbf[1]
+    drlbf_fpr = lbf[2]
 
-    def query_true(word):
+    def query_true():
         if word in bible_corpus_nouns:
             return True
-    bf.insert(word)
-    drlbf.insert(word)
-    lbf.train(word)#help idk wat goes in here
-    #dr lbf stuff here
+        return False
+
+    def evaluate(method):
+        if query_true()==method.query(word):
+            return True
+        return False
+
+    def evaluate_dr(method):
+        if query_true()==method.query(word):
+            method.update(word, query_true())
+            return True
+        method.update(word, query_true())
+        return False
+
+    bf_fpr.append(evaluate(bf))#HELPHELPHELP
+    lbf_fpr.append(evaluate(lbf))#HELPHELPHELP
+    drlbf_fpr.append(evaluate(drlbf))#HELPHELPEHELP
+    return np.array([bf_fpr, lbf_fpr, drlbf_fpr])
+
+size = 1000 # how many words you want to train the bf and lbf on
+
+bf = bfTrain(bf_params, size)
+lbf = lbfTrain(lbf_params, size)
+
+bf_fpr=[]
+lbf_fpr=[]
+drlbf_fpr=[]
+fpr = [bf_fpr,lbf_fpr,drlbf_fpr]
 
 for word in bible_corpus:
-    test(word) #idk what params we gonna put here
+    fpr = test(bf, lbf, drlbf_params, fpr, word)
+
