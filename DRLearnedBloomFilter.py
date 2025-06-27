@@ -33,7 +33,7 @@ class DRLearnedBloomFilter:
 		self.hidden_data = ([], [])
 
 	def insert(self, x):
-		preds = [ S[i].predict([self.preprocess(x)])[0] for i in range(len(self.S)) ]
+		preds = [ self.S[i].predict([self.preprocess(x)])[0] for i in range(len(self.S)) ]
 		if True in preds:
 			self.B[preds.index(True)].insert(x)
 		self.F.insert(x)

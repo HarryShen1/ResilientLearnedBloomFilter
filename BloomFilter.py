@@ -27,6 +27,6 @@ class BloomFilter:
       return all(self.data[np.arange(k), hash(x)])
 
 bloomfilter = BloomFilter(k,p,h,m)
-bloomfilter.insert(7)
-print(bloomfilter.query(7))
-print(bloomfilter.query(5))
+bloomfilter.insert("hi")
+print(bloomfilter.query("hi"))
+print(bloomfilter.query("no"))

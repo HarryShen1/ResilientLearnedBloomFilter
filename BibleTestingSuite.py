@@ -40,19 +40,6 @@ with open('bible_corpus_nouns.pkl', 'rb') as f:
 with open('bible_corpus_notnouns.pkl', 'rb') as f:
     bible_corpus_notnouns = pickle.load(f)
 
-def bfTrain(bf_params,size):
-    bf = BloomFilter(*bf_params)
-    universe = bible_corpus[:size]
-    positive_samples = []
-    positive_counter = 0
-    for i in universe:
-        if i == bible_corpus_nouns[positive_counter]:
-            positive_samples.append(i)
-            positive_counter += 1
-    for i in positive_samples:
-        bf.insert(i)
-    return bf
-
 def lbfTrain(lbf_params,size):
     lbf = LearnedBloomFilter(*lbf_params)
     universe = bible_corpus[:size]
@@ -70,12 +57,11 @@ def lbfTrain(lbf_params,size):
     lbf.train(universe, positive_samples, negative_samples)
     return lbf
 
-def test(bf, lbf, drlbf_params, fpr, word):
-    drlbf = DRLearnedBloomFilter(*drlbf_params)
+def test(bf, lbf, drlbf, fpr, word):
 
     bf_fpr = fpr[0]
-    lbf_fpr = lbf[1]
-    drlbf_fpr = lbf[2]
+    lbf_fpr = fpr[1]
+    drlbf_fpr = fpr[2]
 
     def query_true():
         if word in bible_corpus_nouns:
@@ -94,15 +80,21 @@ def test(bf, lbf, drlbf_params, fpr, word):
         method.update(word, query_true())
         return False
 
-    bf_fpr.append(evaluate(bf))#HELPHELPHELP
-    lbf_fpr.append(evaluate(lbf))#HELPHELPHELP
-    drlbf_fpr.append(evaluate(drlbf))#HELPHELPEHELP
+    bf_fpr.append(evaluate(bf))
+    lbf_fpr.append(evaluate(lbf))
+    drlbf_fpr.append(evaluate(drlbf))
     return np.array([bf_fpr, lbf_fpr, drlbf_fpr])
 
 size = 1000 # how many words you want to train the bf and lbf on
 
-bf = bfTrain(bf_params, size)
+bf = BloomFilter(*bf_params)
 lbf = lbfTrain(lbf_params, size)
+drlbf =  DRLearnedBloomFilter(*drlbf_params)
+
+for word in bible_corpus:
+    bf.insert(word)
+    lbf.insert(word)
+    drlbf.insert(word)
 
 bf_fpr=[]
 lbf_fpr=[]
@@ -110,5 +102,5 @@ drlbf_fpr=[]
 fpr = [bf_fpr,lbf_fpr,drlbf_fpr]
 
 for word in bible_corpus:
-    fpr = test(bf, lbf, drlbf_params, fpr, word)
+    fpr = test(bf, lbf, drlbf, fpr, word)
 
