@@ -110,12 +110,13 @@ class LearnedBloomFilter:
         self.trained = True
 
         # Selectively add uncertain positives to backup
-        inserted = 0
         for x in X:
             prob = self.model.predict([self.preprocess(x)])[0]
             if not prob:
                 self.backup_filter.insert(x)
-                inserted += 1
+
+    def insert(self, x):
+        self.backup_filter.insert(x)
 
     def query(self, x):
         if not self.trained:

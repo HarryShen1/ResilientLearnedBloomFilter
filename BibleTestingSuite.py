@@ -55,7 +55,7 @@ def lbf_train(lbf_params,size):
             negative_samples.append(i)
             negative_counter += 1
     lbf.train(universe, positive_samples, negative_samples)
-    return lbf
+    return (lbf,positive_counter)
 
 def test(bf, lbf, drlbf, fpr, word):
 
@@ -88,13 +88,17 @@ def test(bf, lbf, drlbf, fpr, word):
 size = 1000 # how many words you want to train the bf and lbf on
 
 bf = BloomFilter(*bf_params)
-lbf = lbf_train(lbf_params, size)
+train = lbf_train(lbf_params, size)
+lbf = train[0]
+positive_counter = train[1]
 drlbf =  DRLearnedBloomFilter(*drlbf_params)
 
-for word in bible_corpus:
+for i in range(len(bible_corpus_nouns)):
+    word = bible_corpus_nouns[i]
     bf.insert(word)
-    lbf.insert(word)
     drlbf.insert(word)
+    if i >= positive_counter:
+        lbf.insert(word)
 
 bf_fpr=[]
 lbf_fpr=[]
