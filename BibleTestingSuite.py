@@ -40,7 +40,7 @@ with open('bible_corpus_nouns.pkl', 'rb') as f:
 with open('bible_corpus_notnouns.pkl', 'rb') as f:
     bible_corpus_notnouns = pickle.load(f)
 
-def lbfTrain(lbf_params,size):
+def lbf_train(lbf_params,size):
     lbf = LearnedBloomFilter(*lbf_params)
     universe = bible_corpus[:size]
     positive_samples = []
@@ -88,7 +88,7 @@ def test(bf, lbf, drlbf, fpr, word):
 size = 1000 # how many words you want to train the bf and lbf on
 
 bf = BloomFilter(*bf_params)
-lbf = lbfTrain(lbf_params, size)
+lbf = lbf_train(lbf_params, size)
 drlbf =  DRLearnedBloomFilter(*drlbf_params)
 
 for word in bible_corpus:
