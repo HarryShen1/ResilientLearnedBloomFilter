@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 import hashlib
 import matplotlib.pyplot as plt
+from Hashing import Hasher
 
 
 class ConstantPredictor:
@@ -19,19 +20,15 @@ class BloomFilter:
     def __init__(self, k, m):
         self.k = k
         self.m = m
+        self.hasher = Hasher(k, k)
         self.data = np.zeros((k, m))
 
-    def hash(self, x):
-        x_bytes = str(x).encode('utf-8')
-        digest = hashlib.sha256(x_bytes).digest()
-        return np.array([int.from_bytes(digest[i*4:(i+1)*4], 'big') % self.m for i in range(self.k)])
-
     def insert(self, x):
-        indices = self.hash(x)
+        indices = self.hash(x) % self.m
         self.data[np.arange(self.k), indices] = 1
 
     def query(self, x):
-        indices = self.hash(x)
+        indices = self.hash(x) % self.m
         return all(self.data[np.arange(self.k), indices])
 
 
@@ -39,6 +36,7 @@ class CountingBloomFilter:
     def __init__(self, k, m, data=None):
         self.k = k
         self.m = m
+        self.hasher = Hasher(k, k)
         if data is None:
             self.data = np.zeros((k, m))
         else:
@@ -46,18 +44,13 @@ class CountingBloomFilter:
 
         self.n = 0
 
-    def hash(self, x):
-        x_bytes = str(x).encode('utf-8')
-        digest = hashlib.sha256(x_bytes).digest()
-        return np.array([int.from_bytes(digest[i*4:(i+1)*4], 'big') % self.m for i in range(self.k)])
-
     def insert(self, x):
         self.n += 1
-        indices = self.hash(x)
+        indices = self.hasher.hash(x) % self.m
         self.data[np.arange(self.k), indices] += 1
 
     def query(self, x):
-        indices = self.hash(x)
+        indices = self.hasher.hash(x) % self.m
         return all(self.data[np.arange(self.k), indices])
 
     def __add__(self, other):

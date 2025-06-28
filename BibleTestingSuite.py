@@ -14,6 +14,9 @@ import sys
 from LearnedBloomFilter import BloomFilter, CountingBloomFilter, LearnedBloomFilter
 from DRLearnedBloomFilter import DRLearnedBloomFilter
 
+from Word2VecPreprocessor import preprocess
+
+
 # fixing memory !!!
 memory = 10000
 n_hash = 5
@@ -24,11 +27,11 @@ bf_params = (n_hash, memory // n_hash) # (k, m)
 
 # Memory usage = k * m
 
-lbf_params = (n_hash, memory // n_hash, lambda : GradientBoostingClassifier(n_estimators = 10), lambda x : [x/scale]) # (k, m, confidence_threshold)
+lbf_params = (n_hash, memory // n_hash, lambda : GradientBoostingClassifier(n_estimators = 10), preprocess) # (k, m, confidence_threshold)
 
 # Memory usage = k * m + 1 ~~ km
 
-drlbf_params = (2, 1000, n_hash, memory // (3 * n_hash), lambda : GradientBoostingClassifier(n_estimators = 10), lambda x : [x/scale]) # (C, N, k, m, model)
+drlbf_params = (2, 1000, n_hash, memory // (3 * n_hash), lambda : GradientBoostingClassifier(n_estimators = 10), preprocess) # (C, N, k, m, model)
 
 # Memory usage = (k * m) * (C + 1) + C * 1 ~~ (C + 1)(km + 1) ~~ (C + 1)km
 # 3km in this case
