@@ -1,6 +1,6 @@
 import numpy as np
 
-p = 2 ** 61 - 1
+p = 2 ** 31 - 1
 
 class Hasher: # i hardly know her
     def __init__(self, k, i): # k hashes, i-wise independent
@@ -9,18 +9,17 @@ class Hasher: # i hardly know her
 
 
     def string_hash(self, string):
-        hash = 5381
-
+        h = 5381
         for c in string:
-            hash = ((hash << 5) + hash) + ord(c)
-
-        return hash
+            h = ((h << 5) + h) + ord(c)
+        return h
 
     def hash(self, value):
         c = value
         if type(value) == str:
             c = self.string_hash(value)
+        c = int(c)
 
-        arr = x ** np.arange(self.i)
-        return ((self.hashes @ arr) % p)
+        arr = c ** np.arange(self.i)
+        return ((self.hashes @ arr) % p).astype(int)
 

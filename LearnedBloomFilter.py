@@ -24,11 +24,11 @@ class BloomFilter:
         self.data = np.zeros((k, m))
 
     def insert(self, x):
-        indices = self.hash(x) % self.m
+        indices = self.hasher.hash(x) % self.m
         self.data[np.arange(self.k), indices] = 1
 
     def query(self, x):
-        indices = self.hash(x) % self.m
+        indices = self.hasher.hash(x) % self.m
         return all(self.data[np.arange(self.k), indices])
 
 

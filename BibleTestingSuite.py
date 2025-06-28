@@ -45,18 +45,17 @@ with open('bible_corpus_notnouns.pkl', 'rb') as f:
 
 def lbf_train(lbf_params,size):
     lbf = LearnedBloomFilter(*lbf_params)
-    universe = bible_corpus[:size]
+    universe = bible_corpus
     positive_samples = []
     positive_counter = 0
     negative_samples = []
     negative_counter = 0
+    bible_corpus_nouns_set = set(bible_corpus_nouns)
     for i in universe:
-        if i == bible_corpus_nouns[positive_counter]:
+        if i in bible_corpus_nouns_set:
             positive_samples.append(i)
-            positive_counter += 1
         else:
             negative_samples.append(i)
-            negative_counter += 1
     lbf.train(universe, positive_samples, negative_samples)
     return (lbf,positive_counter)
 
@@ -86,7 +85,7 @@ def test(bf, lbf, drlbf, fpr, word):
     bf_fpr.append(evaluate(bf))
     lbf_fpr.append(evaluate(lbf))
     drlbf_fpr.append(evaluate(drlbf))
-    return np.array([bf_fpr, lbf_fpr, drlbf_fpr])
+    return [bf_fpr, lbf_fpr, drlbf_fpr]
 
 size = 1000 # how many words you want to train the bf and lbf on
 
@@ -96,18 +95,42 @@ lbf = train[0]
 positive_counter = train[1]
 drlbf =  DRLearnedBloomFilter(*drlbf_params)
 
-for i in range(len(bible_corpus_nouns)):
+for i in tqdm(range(len(bible_corpus_nouns))):
     word = bible_corpus_nouns[i]
     bf.insert(word)
     drlbf.insert(word)
-    if i >= positive_counter:
-        lbf.insert(word)
+    # if i >= positive_counter:
+    #     lbf.insert(word)
 
 bf_fpr=[]
 lbf_fpr=[]
 drlbf_fpr=[]
 fpr = [bf_fpr,lbf_fpr,drlbf_fpr]
 
-for word in bible_corpus:
-    fpr = test(bf, lbf, drlbf, fpr, word)
 
+fprs = [ [], [], [] ]
+
+plt.ion()
+
+COLORS = ['blue', 'green', 'red']
+LABELS = ['Bloom Filter', 'Learned Bloom Filter', 'Distribution-Resilient Filter']
+
+AVG_INTERVAL = 1000
+
+for word in tqdm(bible_corpus):
+    fpr = test(bf, lbf, drlbf, fpr, word)
+    
+    n = len(fpr[0])
+
+
+    if n != 0 and n % AVG_INTERVAL == 0:
+        plt.cla()
+
+        for i in range(3):
+            fprs[i].append(sum(fpr[i][-AVG_INTERVAL:]))
+
+            plt.plot(np.arange(n // AVG_INTERVAL), fprs[i], c=COLORS[i], label=LABELS[i])
+            plt.legend()
+
+        plt.draw()
+        plt.pause(0.001)
