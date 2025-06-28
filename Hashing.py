@@ -1,12 +1,12 @@
 p = 2 ** 61 - 1
 
 class Hasher: # i hardly know her
-    def __init__(k, i): # k hashes, i-wise independent
+    def __init__(self, k, i): # k hashes, i-wise independent
         self.i = i 
         self.hashes = np.vectorize(int)(np.random.rand(k, i) * (p + 1))
 
 
-    def string_hash(string):
+    def string_hash(self, string):
         hash = 5381
 
         for c in string:
@@ -14,10 +14,10 @@ class Hasher: # i hardly know her
 
         return hash
 
-    def hash(value):
+    def hash(self, value):
         c = value
         if type(value) == str:
-            c = string_hash(value)
+            c = self.string_hash(value)
 
         arr = x ** np.arange(self.i)
         return ((self.hashes @ arr) % p)
