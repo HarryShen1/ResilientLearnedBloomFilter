@@ -1,3 +1,5 @@
+import numpy as np
+
 p = 2 ** 61 - 1
 
 class Hasher: # i hardly know her
